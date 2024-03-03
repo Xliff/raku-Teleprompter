@@ -90,7 +90,7 @@ sub MAIN (
         }
 
         # Color Invert
-        when GDK_KEY_I {
+        when GDK_KEY_I | GDK_KEY_i {
           ($background-color, $color) = ($color, $background-color);
           set-color;
         }
@@ -101,15 +101,19 @@ sub MAIN (
         }
 
         # Speed-
-        when GDK_KEY_Page_Up {
+        when GDK_KEY_Page_Down {
           $fd.speed -= $e.^isShift ?? 1 !! 0.10;
         }
 
         # Pause = Space
-        when GDK_KEY_Space { $pause .= not   }
+        when GDK_KEY_Space {
+          $pause .= not
+        }
 
         # Q = Quit
-        when GDK_KEY_Q     { $a.quit( :qio ) }
+        when GDK_KEY_Q | GDK_KEY_q {
+          $a.quit( :qio )
+        }
       }
     }
 

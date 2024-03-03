@@ -3,10 +3,11 @@ use v6.c;
 use GLib::Timeout;
 
 use Cro::HTTP::Client;
-use Dom::Tiny;
+use DOM::Tiny;
 use GTK::Raw::Types;
 
 use GTK::Application;
+use GTK::CSSProvider;
 use GTK::ScrolledWindow;
 use GTK::TextView;
 
@@ -14,6 +15,8 @@ my $default;
 
 sub MAIN (
    $source?          is copy,
+  :$selector,
+  :$width                      = 2048,
   :$height                     = 768,
   :$speed            is copy   = 0.05,
   :$color            is copy   = 'white',
@@ -22,8 +25,8 @@ sub MAIN (
   my $paused = False;
 
   my $a = GTK::Application.new(
-    title  => 'org.genex.teleprompter',
-    width  => 2048,
+     title  => 'org.genex.teleprompter',
+    :$width,
     :$height
   );
 
@@ -32,7 +35,7 @@ sub MAIN (
     my $css-s = qq:to/CSS/;
       #tview text \{
         color:            { $color };
-        background-color: { $background-color }
+        background-color: { $background-color };
       \}
       CSS
 
@@ -41,13 +44,15 @@ sub MAIN (
 
   $a.activate.tap( -> *@a {
     my %opts = (
+      name      => 'tview',
       wrap-mode => GTK_WRAP_WORD # Word wrap on word
     );
 
     %opts<text> = do given $source {
-      when .defined.not { $default }
+      when .defined.not {
+        $default
+      }
 
-      # Needs selector and DOM::Tiny
       when .starts-with('http://' | 'https://') {
         my $r = await Cro::HTTP::Client.get($source);
         my $b = await $r.body;
@@ -58,26 +63,38 @@ sub MAIN (
         $b;
       }
 
-      default { .IO.slurp }
+      default {
+        .IO.slurp
+      }
     }
 
     my $v  = GTK::TextView.new( |%opts );
     my $fd = $v.set-font('DejaVu Sans 36');
     my $s  = GTK::ScrolledWindow.new;
 
-    $v.name = 'tview';
     $v.key-press-event.tap: sub ($, $e, *@) {
       given $e.keyval {
+        # UP         = Size + 10
+        # Shift + UP = Size + 1
         when GDK_KEY_Up    {
           $fd.size += $e.&isShift ?? 1 !! 10;
           $v.set-font($fd)
         }
+
+        # DOWN         = Size - 10
+        # Shift + DOWN = Size - 1
         when GDK_KEY_Down  {
-          $fd.size += $e.&isShift ?? 1 !! 10;
+          $fd.size -= $e.&isShift ?? 1 !! 10;
           $v.set-font($fd)
         }
 
+        # Speed+
+        # Speed-
+
+        # Pause = Space
         when GDK_KEY_SPACE { $pause .= not   }
+
+        # Q = Quit
         when GDK_KEY_Q     { $a.quit( :qio ) }
       }
     }
@@ -87,14 +104,15 @@ sub MAIN (
     $a.window.add($s);
     $a.window.show-all;
 
+    # Scroll
     GLib::Timeout.add(1, SUB {
       CATCH {
         default { .message.say; .backtrace.concise.say }
       }
 
       unless $paused {
-        $adj.value += $speed;
-        $v.vadjustment = $adj;
+        $adj.value     += $speed;
+        $v.vadjustment  = $adj;
       }
       G_SOURCE_CONTINUE
     });

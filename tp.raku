@@ -18,9 +18,10 @@ sub MAIN (
   :$selector,
   :$width                      = 2048,
   :$height                     = 768,
-  :$speed            is copy   = 0.05,
+  :$background-color is copy   = 'black',
   :$color            is copy   = 'white',
-  :$background-color is copy   = 'black'
+  :$font                       = 'DejaVu Sans 36',
+  :$speed            is copy   = 0.05
 ) {
   my $paused = False;
 
@@ -69,7 +70,7 @@ sub MAIN (
     }
 
     my $v  = GTK::TextView.new( |%opts );
-    my $fd = $v.set-font('DejaVu Sans 36');
+    my $fd = $v.set-font($font);
     my $s  = GTK::ScrolledWindow.new;
 
     $v.key-press-event.tap: sub ($, $e, *@) {
@@ -88,11 +89,24 @@ sub MAIN (
           $v.set-font($fd)
         }
 
+        # Color Invert
+        when GDK_KEY_I {
+          ($background-color, $color) = ($color, $background-color);
+          set-color;
+        }
+
         # Speed+
+        when GDK_KEY_Page_Up {
+          $fd.speed += $e.^isShift ?? 1 !! 0.10;
+        }
+
         # Speed-
+        when GDK_KEY_Page_Up {
+          $fd.speed -= $e.^isShift ?? 1 !! 0.10;
+        }
 
         # Pause = Space
-        when GDK_KEY_SPACE { $pause .= not   }
+        when GDK_KEY_Space { $pause .= not   }
 
         # Q = Quit
         when GDK_KEY_Q     { $a.quit( :qio ) }
